@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Consumo de Energia 2.0</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<header class="cabecalho">
+    <div class="container cabecalho-conteudo">
+
+        <div>
+            <span class="versao">Versão 2.0</span>
+
+            <h1>Consumo de Energia</h1>
+
+            <p>
+                Simule o consumo elétrico dos seus aparelhos,
+                estime custos e visualize os maiores consumidores.
+            </p>
+        </div>
+
+    </div>
+</header>
+
+
+<main class="container">
+
+    <section class="configuracao">
+
+        <div>
+            <h2>Configuração</h2>
+
+            <p>
+                Defina a tarifa utilizada nas estimativas de custo.
+            </p>
+        </div>
+
+        <div class="tarifa">
+
+            <label for="tarifa">
+                Tarifa estimada (R$/kWh)
+            </label>
+
+            <input
+                    type="number"
+                    id="tarifa"
+                    min="0.01"
+                    step="0.01"
+                    value="1.00"
+            >
+
+            <small>
+                Para uma estimativa mais próxima da realidade,
+                consulte o valor médio do kWh na sua conta de energia.
+            </small>
+
+        </div>
+
+    </section>
+
+
+    <section>
+
+        <div class="titulo-section">
+
+            <div>
+                <h2>Novo aparelho</h2>
+
+                <p>
+                    Informe os dados de uso para calcular o consumo mensal.
+                </p>
+            </div>
+
+        </div>
+
+
+        <form id="form-aparelho">
+
+            <input
+                    type="hidden"
+                    id="indice-edicao"
+            >
+
+
+            <div class="campo">
+
+                <label for="nome">
+                    Nome do aparelho
+                </label>
+
+                <input
+                        type="text"
+                        id="nome"
+                        placeholder="Ex.: Ar-condicionado"
+                        required
+                >
+
+            </div>
+
+
+            <div class="campo">
+
+                <label for="potencia">
+                    Potência (W)
+                </label>
+
+                <input
+                        type="number"
+                        id="potencia"
+                        min="1"
+                        placeholder="Ex.: 1500"
+                        required
+                >
+
+            </div>
+
+
+            <div class="campo">
+
+                <label for="horas">
+                    Horas de uso por dia
+                </label>
+
+                <input
+                        type="number"
+                        id="horas"
+                        min="0.1"
+                        max="24"
+                        step="0.1"
+                        placeholder="Ex.: 6"
+                        required
+                >
+
+            </div>
+
+
+            <div class="campo">
+
+                <label for="dias">
+                    Dias de uso no mês
+                </label>
+
+                <input
+                        type="number"
+                        id="dias"
+                        min="1"
+                        max="31"
+                        placeholder="Ex.: 30"
+                        required
+                >
+
+            </div>
+
+
+            <div class="botoes-formulario">
+
+                <button
+                        type="submit"
+                        id="botao-salvar"
+                >
+                    Adicionar aparelho
+                </button>
+
+
+                <button
+                        type="button"
+                        id="botao-cancelar"
+                        class="botao-secundario oculto"
+                >
+                    Cancelar edição
+                </button>
+
+            </div>
+
+        </form>
+
+    </section>
+
+
+    <section>
+
+        <div class="titulo-section">
+
+            <div>
+                <h2>Resumo</h2>
+
+                <p>
+                    Visão geral do consumo cadastrado.
+                </p>
+            </div>
+
+        </div>
+
+
+        <div class="cards">
+
+            <div class="card">
+                <span>Consumo mensal</span>
+
+                <strong id="consumo-total">
+                    0,00 kWh
+                </strong>
+            </div>
+
+
+            <div class="card">
+                <span>Custo mensal estimado</span>
+
+                <strong id="custo-total">
+                    R$ 0,00
+                </strong>
+            </div>
+
+
+            <div class="card">
+                <span>Estimativa anual</span>
+
+                <strong id="custo-anual">
+                    R$ 0,00
+                </strong>
+            </div>
+
+
+            <div class="card">
+                <span>Aparelhos cadastrados</span>
+
+                <strong id="quantidade-aparelhos">
+                    0
+                </strong>
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <section>
+
+        <div class="titulo-section">
+
+            <div>
+                <h2>Análise de consumo</h2>
+
+                <p>
+                    Destaques com base nos aparelhos cadastrados.
+                </p>
+            </div>
+
+        </div>
+
+
+        <div
+                id="destaque-consumo"
+                class="destaque-vazio"
+        >
+            Cadastre aparelhos para visualizar a análise.
+        </div>
+
+    </section>
+
+
+    <section>
+
+        <div class="titulo-section">
+
+            <div>
+                <h2>Consumo por aparelho</h2>
+
+                <p>
+                    Comparação visual do consumo mensal.
+                </p>
+            </div>
+
+        </div>
+
+
+        <div
+                id="grafico-consumo"
+                class="grafico"
+        >
+
+            <p class="grafico-vazio">
+                Nenhum dado disponível.
+            </p>
+
+        </div>
+
+    </section>
+
+
+    <section>
+
+        <div class="titulo-section">
+
+            <div>
+
+                <h2>Aparelhos cadastrados</h2>
+
+                <p>
+                    Confira os valores e gerencie os registros.
+                </p>
+
+            </div>
+
+
+            <button
+                    type="button"
+                    id="botao-limpar"
+                    class="botao-perigo"
+            >
+                Limpar lista
+            </button>
+
+        </div>
+
+
+        <div class="tabela-container">
+
+            <table>
+
+                <thead>
+
+                <tr>
+                    <th>Aparelho</th>
+                    <th>Potência</th>
+                    <th>Uso</th>
+                    <th>Consumo</th>
+                    <th>Nível</th>
+                    <th>Custo</th>
+                    <th>Participação</th>
+                    <th>Ações</th>
+                </tr>
+
+                </thead>
+
+
+                <tbody id="lista-aparelhos">
+                </tbody>
+
+            </table>
+
+        </div>
+
+
+        <p id="mensagem-vazia">
+            Nenhum aparelho cadastrado.
+        </p>
+
+    </section>
+
+</main>
+
+
+<footer>
+    <p>
+        Consumo de Energia 2.0 — projeto acadêmico revisitado e aprimorado.
+    </p>
+</footer>
+
+
+<script src="script.js"></script>
+
+</body>
+</html>
