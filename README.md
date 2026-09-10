@@ -2,6 +2,10 @@
 
 Aplicação web desenvolvida para simular o consumo de energia elétrica de diferentes aparelhos e estimar os custos de utilização.
 
+## Demonstração
+
+[Acessar o Consumo de Energia 2.0 online](https://consumo-energia-2.onrender.com)
+
 ## Sobre o projeto
 
 A primeira versão deste projeto surgiu em 2025, durante um trabalho acadêmico da faculdade.
