@@ -1,500 +1,59 @@
-const form = document.getElementById("form-aparelho");
+'use strict';
 
-const nomeInput = document.getElementById("nome");
-const potenciaInput = document.getElementById("potencia");
-const horasInput = document.getElementById("horas");
-const diasInput = document.getElementById("dias");
-const tarifaInput = document.getElementById("tarifa");
+const authScript=document.createElement('script');
+authScript.src='auth.js';
+authScript.onload=()=>EnergyCloud.ready.then(initApp);
+authScript.onerror=()=>alert('Não foi possível carregar a autenticação. Tente novamente.');
+document.head.appendChild(authScript);
 
-const listaAparelhos = document.getElementById("lista-aparelhos");
-const mensagemVazia = document.getElementById("mensagem-vazia");
+async function initApp(){
+const form=document.getElementById('form-aparelho');
+const nomeInput=document.getElementById('nome');
+const potenciaInput=document.getElementById('potencia');
+const horasInput=document.getElementById('horas');
+const diasInput=document.getElementById('dias');
+const tarifaInput=document.getElementById('tarifa');
+const listaAparelhos=document.getElementById('lista-aparelhos');
+const mensagemVazia=document.getElementById('mensagem-vazia');
+const consumoTotalElemento=document.getElementById('consumo-total');
+const custoTotalElemento=document.getElementById('custo-total');
+const custoAnualElemento=document.getElementById('custo-anual');
+const quantidadeElemento=document.getElementById('quantidade-aparelhos');
+const destaqueConsumo=document.getElementById('destaque-consumo');
+const graficoConsumo=document.getElementById('grafico-consumo');
+const indiceEdicao=document.getElementById('indice-edicao');
+const botaoSalvar=document.getElementById('botao-salvar');
+const botaoCancelar=document.getElementById('botao-cancelar');
+const botaoLimpar=document.getElementById('botao-limpar');
+let aparelhos=[];
+let saveTimer=null;
 
-const consumoTotalElemento = document.getElementById("consumo-total");
-const custoTotalElemento = document.getElementById("custo-total");
-const custoAnualElemento = document.getElementById("custo-anual");
-const quantidadeElemento = document.getElementById("quantidade-aparelhos");
+try{
+ const cloud=await EnergyCloud.load();
+ aparelhos=Array.isArray(cloud.aparelhos)?cloud.aparelhos:[];
+ if(cloud.tarifa && Number(cloud.tarifa)>0) tarifaInput.value=cloud.tarifa;
+}catch(err){console.error(err);}
 
-const destaqueConsumo = document.getElementById("destaque-consumo");
-const graficoConsumo = document.getElementById("grafico-consumo");
+function persist(){clearTimeout(saveTimer);saveTimer=setTimeout(()=>EnergyCloud.save({aparelhos,tarifa:tarifaInput.value}).catch(console.error),250);}
+function calcularConsumo(potencia,horas,dias){return(potencia*horas*dias)/1000;}
+function calcularCusto(consumo){return consumo*Number(tarifaInput.value||0);}
+function formatarNumero(valor){return Number(valor).toFixed(2).replace('.',',');}
+function formatarDinheiro(valor){return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(valor);}
+function classificarConsumo(consumo){if(consumo<50)return{texto:'Baixo',classe:'nivel-baixo'};if(consumo<150)return{texto:'Moderado',classe:'nivel-moderado'};return{texto:'Alto',classe:'nivel-alto'};}
+function esc(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
-const indiceEdicao = document.getElementById("indice-edicao");
+function atualizarValores(){aparelhos.forEach(a=>{a.consumo=calcularConsumo(Number(a.potencia),Number(a.horas),Number(a.dias));a.custo=calcularCusto(a.consumo);});}
+function atualizarResumo(){const consumo=aparelhos.reduce((s,a)=>s+a.consumo,0);const custo=aparelhos.reduce((s,a)=>s+a.custo,0);consumoTotalElemento.textContent=formatarNumero(consumo)+' kWh';custoTotalElemento.textContent=formatarDinheiro(custo);custoAnualElemento.textContent=formatarDinheiro(custo*12);quantidadeElemento.textContent=String(aparelhos.length);atualizarDestaque(consumo);}
+function atualizarDestaque(total){if(!aparelhos.length){destaqueConsumo.className='destaque-vazio';destaqueConsumo.textContent='Cadastre aparelhos para visualizar a análise.';return;}const maior=aparelhos.reduce((m,a)=>a.consumo>m.consumo?a:m,aparelhos[0]);const pct=total>0?(maior.consumo/total)*100:0;destaqueConsumo.className='destaque';destaqueConsumo.innerHTML=`<strong>Maior consumidor: ${esc(maior.nome)}</strong><span>${formatarNumero(maior.consumo)} kWh/mês, equivalente a ${formatarNumero(pct)}% do consumo cadastrado.</span>`;}
+function atualizarGrafico(){graficoConsumo.innerHTML='';if(!aparelhos.length){graficoConsumo.innerHTML='<p class="grafico-vazio">Nenhum dado disponível.</p>';return;}const ord=[...aparelhos].sort((a,b)=>b.consumo-a.consumo);const max=ord[0].consumo;ord.forEach(a=>{const largura=max>0?(a.consumo/max)*100:0;const item=document.createElement('div');item.className='item-grafico';item.innerHTML=`<span class="nome-grafico">${esc(a.nome)}</span><div class="barra-fundo"><div class="barra-consumo" style="width:${largura}%"></div></div><span class="valor-grafico">${formatarNumero(a.consumo)} kWh</span>`;graficoConsumo.appendChild(item);});}
+function renderizar(){atualizarValores();listaAparelhos.innerHTML='';const total=aparelhos.reduce((s,a)=>s+a.consumo,0);mensagemVazia.style.display=aparelhos.length?'none':'block';botaoLimpar.style.display=aparelhos.length?'block':'none';aparelhos.forEach((a,i)=>{const pct=total>0?(a.consumo/total)*100:0;const nivel=classificarConsumo(a.consumo);const tr=document.createElement('tr');tr.innerHTML=`<td>${esc(a.nome)}</td><td>${a.potencia} W</td><td>${a.horas} h/dia<br>${a.dias} dias/mês</td><td>${formatarNumero(a.consumo)} kWh</td><td><span class="nivel ${nivel.classe}">${nivel.texto}</span></td><td>${formatarDinheiro(a.custo)}</td><td>${formatarNumero(pct)}%</td><td><div class="acoes"><button class="botao-editar" data-edit="${i}">Editar</button><button class="botao-excluir" data-delete="${i}">Excluir</button></div></td>`;listaAparelhos.appendChild(tr);});listaAparelhos.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editar(Number(b.dataset.edit)));listaAparelhos.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>excluir(Number(b.dataset.delete)));atualizarResumo();atualizarGrafico();persist();}
+function cancelar(){form.reset();indiceEdicao.value='';botaoSalvar.textContent='Adicionar aparelho';botaoCancelar.classList.add('oculto');if(Number(tarifaInput.value)<=0)tarifaInput.value='1.00';}
+function editar(i){const a=aparelhos[i];nomeInput.value=a.nome;potenciaInput.value=a.potencia;horasInput.value=a.horas;diasInput.value=a.dias;indiceEdicao.value=String(i);botaoSalvar.textContent='Salvar alterações';botaoCancelar.classList.remove('oculto');nomeInput.focus();}
+function excluir(i){if(!confirm('Deseja excluir este aparelho?'))return;aparelhos.splice(i,1);renderizar();}
 
-const botaoSalvar = document.getElementById("botao-salvar");
-const botaoCancelar = document.getElementById("botao-cancelar");
-const botaoLimpar = document.getElementById("botao-limpar");
-
-let aparelhos = JSON.parse(localStorage.getItem("aparelhos")) || [];
-
-const tarifaSalva = localStorage.getItem("tarifa");
-
-if (tarifaSalva) {
-    tarifaInput.value = tarifaSalva;
+form.addEventListener('submit',e=>{e.preventDefault();const nome=nomeInput.value.trim(),potencia=Number(potenciaInput.value),horas=Number(horasInput.value),dias=Number(diasInput.value);if(!nome||potencia<=0||horas<=0||horas>24||dias<=0||dias>31){alert('Preencha os campos corretamente.');return;}const a={nome,potencia,horas,dias,consumo:0,custo:0};if(indiceEdicao.value!=='')aparelhos[Number(indiceEdicao.value)]=a;else aparelhos.push(a);renderizar();cancelar();});
+botaoLimpar.addEventListener('click',()=>{if(aparelhos.length&&confirm('Deseja excluir todos os aparelhos cadastrados?')){aparelhos=[];renderizar();}});
+botaoCancelar.addEventListener('click',cancelar);
+tarifaInput.addEventListener('change',()=>{if(Number(tarifaInput.value)<=0)tarifaInput.value='1.00';renderizar();});
+renderizar();
 }
-
-
-/* ------------------------------
-   Armazenamento
------------------------------- */
-
-function salvarDados() {
-    localStorage.setItem("aparelhos", JSON.stringify(aparelhos));
-}
-
-function salvarTarifa() {
-    localStorage.setItem("tarifa", tarifaInput.value);
-}
-
-
-/* ------------------------------
-   Cálculos
------------------------------- */
-
-function calcularConsumo(potencia, horas, dias) {
-    return (potencia * horas * dias) / 1000;
-}
-
-function calcularCusto(consumo) {
-    const tarifa = Number(tarifaInput.value);
-
-    return consumo * tarifa;
-}
-
-function atualizarValoresAparelhos() {
-    aparelhos.forEach(function (aparelho) {
-        aparelho.consumo = calcularConsumo(
-            aparelho.potencia,
-            aparelho.horas,
-            aparelho.dias
-        );
-
-        aparelho.custo = calcularCusto(aparelho.consumo);
-    });
-}
-
-
-/* ------------------------------
-   Formatação
------------------------------- */
-
-function formatarNumero(valor) {
-    return valor.toFixed(2).replace(".", ",");
-}
-
-function formatarDinheiro(valor) {
-    const formatador = new Intl.NumberFormat("pt-BR", {
-        style: "currency",
-        currency: "BRL"
-    });
-
-    return formatador.format(valor);
-}
-
-
-/* ------------------------------
-   Classificação de consumo
------------------------------- */
-
-function classificarConsumo(consumo) {
-    if (consumo < 50) {
-        return {
-            texto: "Baixo",
-            classe: "nivel-baixo"
-        };
-    }
-
-    if (consumo < 150) {
-        return {
-            texto: "Moderado",
-            classe: "nivel-moderado"
-        };
-    }
-
-    return {
-        texto: "Alto",
-        classe: "nivel-alto"
-    };
-}
-
-
-/* ------------------------------
-   Resumo
------------------------------- */
-
-function atualizarResumo() {
-    let consumoTotal = 0;
-    let custoTotal = 0;
-
-    aparelhos.forEach(function (aparelho) {
-        consumoTotal += aparelho.consumo;
-        custoTotal += aparelho.custo;
-    });
-
-    consumoTotalElemento.textContent =
-        formatarNumero(consumoTotal) + " kWh";
-
-    custoTotalElemento.textContent =
-        formatarDinheiro(custoTotal);
-
-    custoAnualElemento.textContent =
-        formatarDinheiro(custoTotal * 12);
-
-    quantidadeElemento.textContent =
-        String(aparelhos.length);
-
-    atualizarDestaque(consumoTotal);
-}
-
-
-/* ------------------------------
-   Maior consumidor
------------------------------- */
-
-function atualizarDestaque(consumoTotal) {
-    if (aparelhos.length === 0) {
-        destaqueConsumo.className = "destaque-vazio";
-        destaqueConsumo.textContent =
-            "Cadastre aparelhos para visualizar a análise.";
-
-        return;
-    }
-
-    let maiorConsumidor = aparelhos[0];
-
-    aparelhos.forEach(function (aparelho) {
-        if (aparelho.consumo > maiorConsumidor.consumo) {
-            maiorConsumidor = aparelho;
-        }
-    });
-
-    let percentual = 0;
-
-    if (consumoTotal > 0) {
-        percentual =
-            (maiorConsumidor.consumo / consumoTotal) * 100;
-    }
-
-    destaqueConsumo.className = "destaque";
-
-    destaqueConsumo.innerHTML = `
-        <strong>
-            Maior consumidor: ${maiorConsumidor.nome}
-        </strong>
-
-        <span>
-            ${formatarNumero(maiorConsumidor.consumo)} kWh/mês,
-            equivalente a ${formatarNumero(percentual)}%
-            do consumo cadastrado.
-        </span>
-    `;
-}
-
-
-/* ------------------------------
-   Gráfico
------------------------------- */
-
-function atualizarGrafico() {
-    graficoConsumo.innerHTML = "";
-
-    if (aparelhos.length === 0) {
-        graficoConsumo.innerHTML = `
-            <p class="grafico-vazio">
-                Nenhum dado disponível.
-            </p>
-        `;
-
-        return;
-    }
-
-    const aparelhosOrdenados = [...aparelhos];
-
-    aparelhosOrdenados.sort(function (a, b) {
-        return b.consumo - a.consumo;
-    });
-
-    const maiorConsumo = aparelhosOrdenados[0].consumo;
-
-    aparelhosOrdenados.forEach(function (aparelho) {
-        let largura = 0;
-
-        if (maiorConsumo > 0) {
-            largura =
-                (aparelho.consumo / maiorConsumo) * 100;
-        }
-
-        const item = document.createElement("div");
-
-        item.className = "item-grafico";
-
-        item.innerHTML = `
-            <span class="nome-grafico">
-                ${aparelho.nome}
-            </span>
-
-            <div class="barra-fundo">
-                <div
-                    class="barra-consumo"
-                    style="width: ${largura}%"
-                ></div>
-            </div>
-
-            <span class="valor-grafico">
-                ${formatarNumero(aparelho.consumo)} kWh
-            </span>
-        `;
-
-        graficoConsumo.appendChild(item);
-    });
-}
-
-
-/* ------------------------------
-   Tabela
------------------------------- */
-
-function renderizarAparelhos() {
-    atualizarValoresAparelhos();
-
-    listaAparelhos.innerHTML = "";
-
-    let consumoTotal = 0;
-
-    aparelhos.forEach(function (aparelho) {
-        consumoTotal += aparelho.consumo;
-    });
-
-    if (aparelhos.length === 0) {
-        mensagemVazia.style.display = "block";
-        botaoLimpar.style.display = "none";
-    } else {
-        mensagemVazia.style.display = "none";
-        botaoLimpar.style.display = "block";
-    }
-
-    aparelhos.forEach(function (aparelho, indice) {
-        let participacao = 0;
-
-        if (consumoTotal > 0) {
-            participacao =
-                (aparelho.consumo / consumoTotal) * 100;
-        }
-
-        const nivel = classificarConsumo(aparelho.consumo);
-
-        const linha = document.createElement("tr");
-
-        linha.innerHTML = `
-            <td>${aparelho.nome}</td>
-
-            <td>
-                ${aparelho.potencia} W
-            </td>
-
-            <td>
-                ${aparelho.horas} h/dia
-                <br>
-                ${aparelho.dias} dias/mês
-            </td>
-
-            <td>
-                ${formatarNumero(aparelho.consumo)} kWh
-            </td>
-
-            <td>
-                <span class="nivel ${nivel.classe}">
-                    ${nivel.texto}
-                </span>
-            </td>
-
-            <td>
-                ${formatarDinheiro(aparelho.custo)}
-            </td>
-
-            <td>
-                ${formatarNumero(participacao)}%
-            </td>
-
-            <td>
-                <div class="acoes">
-
-                    <button
-                        class="botao-editar"
-                        onclick="editarAparelho(${indice})"
-                    >
-                        Editar
-                    </button>
-
-                    <button
-                        class="botao-excluir"
-                        onclick="excluirAparelho(${indice})"
-                    >
-                        Excluir
-                    </button>
-
-                </div>
-            </td>
-        `;
-
-        listaAparelhos.appendChild(linha);
-    });
-
-    atualizarResumo();
-    atualizarGrafico();
-    salvarDados();
-}
-
-
-/* ------------------------------
-   Cadastro e edição
------------------------------- */
-
-form.addEventListener("submit", function (event) {
-    event.preventDefault();
-
-    const nome = nomeInput.value.trim();
-    const potencia = Number(potenciaInput.value);
-    const horas = Number(horasInput.value);
-    const dias = Number(diasInput.value);
-
-    if (
-        nome === "" ||
-        potencia <= 0 ||
-        horas <= 0 ||
-        horas > 24 ||
-        dias <= 0 ||
-        dias > 31
-    ) {
-        alert("Preencha os campos corretamente.");
-
-        return;
-    }
-
-    const aparelho = {
-        nome: nome,
-        potencia: potencia,
-        horas: horas,
-        dias: dias,
-        consumo: 0,
-        custo: 0
-    };
-
-    if (indiceEdicao.value !== "") {
-        const indice = Number(indiceEdicao.value);
-
-        aparelhos[indice] = aparelho;
-    } else {
-        aparelhos.push(aparelho);
-    }
-
-    renderizarAparelhos();
-    cancelarEdicao();
-});
-
-
-/* ------------------------------
-   Editar
------------------------------- */
-
-function editarAparelho(indice) {
-    const aparelho = aparelhos[indice];
-
-    nomeInput.value = aparelho.nome;
-    potenciaInput.value = aparelho.potencia;
-    horasInput.value = aparelho.horas;
-    diasInput.value = aparelho.dias;
-
-    indiceEdicao.value = String(indice);
-
-    botaoSalvar.textContent = "Salvar alterações";
-
-    botaoCancelar.classList.remove("oculto");
-
-    nomeInput.focus();
-}
-
-
-/* ------------------------------
-   Cancelar edição
------------------------------- */
-
-function cancelarEdicao() {
-    form.reset();
-
-    indiceEdicao.value = "";
-
-    botaoSalvar.textContent = "Adicionar aparelho";
-
-    botaoCancelar.classList.add("oculto");
-}
-
-
-/* ------------------------------
-   Excluir
------------------------------- */
-
-function excluirAparelho(indice) {
-    const confirmou = confirm(
-        "Deseja excluir este aparelho?"
-    );
-
-    if (!confirmou) {
-        return;
-    }
-
-    aparelhos.splice(indice, 1);
-
-    renderizarAparelhos();
-}
-
-
-/* ------------------------------
-   Limpar lista
------------------------------- */
-
-botaoLimpar.addEventListener("click", function () {
-    if (aparelhos.length === 0) {
-        return;
-    }
-
-    const confirmou = confirm(
-        "Deseja excluir todos os aparelhos cadastrados?"
-    );
-
-    if (!confirmou) {
-        return;
-    }
-
-    aparelhos = [];
-
-    renderizarAparelhos();
-});
-
-
-/* ------------------------------
-   Cancelar
------------------------------- */
-
-botaoCancelar.addEventListener("click", function () {
-    cancelarEdicao();
-});
-
-
-/* ------------------------------
-   Atualização da tarifa
------------------------------- */
-
-tarifaInput.addEventListener("change", function () {
-    if (Number(tarifaInput.value) <= 0) {
-        tarifaInput.value = "1.00";
-    }
-
-    salvarTarifa();
-    renderizarAparelhos();
-});
-
-
-/* ------------------------------
-   Inicialização
------------------------------- */
-
-renderizarAparelhos();
