@@ -1,75 +1,55 @@
 # Consumo de Energia 2.0
 
-Aplicação web desenvolvida para simular o consumo de energia elétrica de diferentes aparelhos e estimar os custos de utilização.
+Aplicação web para simular consumo de energia elétrica, estimar custos e comparar aparelhos, agora com autenticação, persistência por usuário e painel administrativo.
 
 ## Demonstração
 
 [Acessar o Consumo de Energia 2.0 online](https://consumo-energia-2.onrender.com)
 
-## Sobre o projeto
-
-A primeira versão deste projeto surgiu em 2025, durante um trabalho acadêmico da faculdade.
-
-Na época, a proposta era criar uma aplicação simples relacionada ao consumo de energia elétrica, utilizando os conhecimentos que tínhamos adquirido até aquele momento.
-
-Em 2026, decidi revisitar a ideia e reconstruir o projeto com os conhecimentos que adquiri desde então.
-
-A proposta da versão 2.0 foi manter a essência do trabalho original, mas melhorar a organização do código, a interface e as funcionalidades da aplicação.
-
 ## Funcionalidades
 
-- Cadastro de aparelhos elétricos
-- Cálculo do consumo mensal em kWh
-- Estimativa do custo mensal
-- Estimativa de custo anual
-- Configuração da tarifa de energia
-- Edição e exclusão de aparelhos
+- Cadastro, edição e exclusão de aparelhos
+- Cálculo de consumo mensal em kWh
+- Estimativa de custo mensal e anual
+- Tarifa personalizada
 - Identificação do maior consumidor
 - Comparação visual do consumo
-- Participação de cada aparelho no consumo total
-- Classificação de consumo
-- Armazenamento dos dados no navegador com LocalStorage
+- Cadastro e login de usuários
+- Dados separados por conta e armazenados em PostgreSQL
+- Perfis `USER` e `ADMIN`
+- Painel administrativo para gestão de contas
 
-## Tecnologias utilizadas
+## Tecnologias
 
 - HTML5
 - CSS3
 - JavaScript
-- LocalStorage
+- Node.js + Express
+- PostgreSQL (Neon)
+- JWT em cookie HttpOnly
+- Render
 
-O projeto foi desenvolvido sem frameworks ou bibliotecas externas.
+## Perfis de acesso
 
-## Como funciona
+| Perfil | Acesso |
+| --- | --- |
+| Usuário | Mantém seus próprios aparelhos, tarifa, simulações e estimativas. |
+| Admin | Acessa uma área administrativa separada para gerenciar contas. |
 
-O usuário informa:
+O painel administrativo não é utilizado para alterar as simulações privadas dos usuários.
 
-- nome do aparelho;
-- potência em watts;
-- média de horas de uso por dia;
-- quantidade de dias de utilização no mês.
+## Segurança
 
-A aplicação calcula o consumo estimado em kWh e utiliza a tarifa informada para estimar os custos.
+- Senhas armazenadas com derivação `scrypt`, nunca em texto puro.
+- Sessão em cookie `HttpOnly`, `Secure` e `SameSite=None` para a arquitetura frontend/backend separada.
+- Cada operação de dados é vinculada ao usuário autenticado no backend.
+- Contas administrativas não podem ser criadas pelo cadastro público.
+- Segredos de produção são mantidos em variáveis de ambiente e não no repositório.
 
-Os aparelhos cadastrados também podem ser comparados através da análise de consumo e da representação gráfica disponível na aplicação.
+## Origem do projeto
 
-## Evolução para a versão 2.0
-
-Ao revisitar o projeto, implementei melhorias como:
-
-- nova interface;
-- layout responsivo;
-- armazenamento local;
-- edição dos registros;
-- cálculo automático dos totais;
-- estimativas mensais e anuais;
-- análise do maior consumidor;
-- classificação de consumo;
-- comparação gráfica entre os aparelhos.
-
-Revisitar esse trabalho foi também uma forma de observar minha evolução desde os primeiros projetos da faculdade e aplicar conhecimentos adquiridos ao longo do curso.
+A primeira versão surgiu em 2025 em um trabalho acadêmico. Em 2026 o projeto foi revisitado e evoluído, mantendo a proposta original de cálculo de consumo enquanto adiciona uma arquitetura mais completa de aplicação web.
 
 ## Observação
 
-Os resultados apresentados pela aplicação são estimativas.
-
-A potência varia conforme o modelo de cada aparelho e o custo final da energia depende da tarifa utilizada pelo consumidor e de outros componentes presentes na conta de energia.
+Os resultados são estimativas. A potência varia conforme o aparelho e o custo real depende da tarifa e de outros componentes da conta de energia.
