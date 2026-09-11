@@ -6,6 +6,8 @@ Aplicação web para simular consumo de energia elétrica, estimar custos e comp
 
 [Acessar o Consumo de Energia 2.0 online](https://consumo-energia-2.onrender.com)
 
+**Conta demo:** `demo@consumoenergia.app` / `ConsumoEnergia@2026` (cadastro livre também disponível na aplicação).
+
 ## Funcionalidades
 
 - Cadastro, edição e exclusão de aparelhos
