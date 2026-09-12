@@ -1,64 +1,85 @@
 # Consumo de Energia 2.0
 
-Aplicação web para simular consumo de energia elétrica, estimar custos e comparar aparelhos, agora com autenticação, persistência por usuário e painel administrativo.
+Aplicação web para simular consumo de energia elétrica, estimar custos e comparar aparelhos, com autenticação, persistência por usuário e painel administrativo.
 
 ## Demonstração
 
-[Acessar o Consumo de Energia 2.0 online](https://consumo-energia-2.onrender.com)
+**Aplicação:** https://consumo-energia-2.onrender.com
 
-**Contas demo:**
+## Credencial demo
 
 | Perfil | E-mail | Senha |
 |---|---|---|
 | Usuário | `demo@consumoenergia.app` | `ConsumoEnergia@2026` |
-| Administrador | `admin@consumoenergia.app` | `Admin@Portfolio2026` |
 
-> Cadastro livre também disponível na aplicação.
+O acesso administrativo é interno e não possui credencial pública.
 
-## Funcionalidades
+## Sobre
 
-- Cadastro, edição e exclusão de aparelhos
-- Cálculo de consumo mensal em kWh
-- Estimativa de custo mensal e anual
-- Tarifa personalizada
-- Identificação do maior consumidor
-- Comparação visual do consumo
-- Cadastro e login de usuários
-- Dados separados por conta e armazenados em PostgreSQL
-- Perfis `USER` e `ADMIN`
-- Painel administrativo para gestão de contas
+Evolução de um projeto acadêmico de cálculo de consumo de energia. O usuário cadastra aparelhos (potência, horas e dias de uso) e a tarifa, e o sistema estima consumo mensal em kWh, custo e projeção anual, com classificação por faixas de consumo.
+
+## Funcionalidades principais
+
+- Cadastro e login de usuários com sessão por cookie HttpOnly
+- Cadastro de aparelhos e tarifa por usuário
+- Estimativa de consumo (kWh), custo mensal e projeção anual
+- Classificação do consumo e destaque do maior consumidor
+- Dados salvos por usuário (um cenário por conta)
+- Painel administrativo de gestão de contas
+- Exclusão definitiva da conta pela própria interface
 
 ## Tecnologias
 
-- HTML5
-- CSS3
-- JavaScript
-- Node.js + Express
-- PostgreSQL (Neon)
-- JWT em cookie HttpOnly
-- Render
+- **Frontend:** HTML5, CSS3, JavaScript
+- **Backend:** Node.js, Express, JWT
+- **Banco de dados:** PostgreSQL (Neon)
+- **Infraestrutura:** Render
 
 ## Perfis de acesso
 
-| Perfil | Acesso |
-| --- | --- |
-| Usuário | Mantém seus próprios aparelhos, tarifa, simulações e estimativas. |
-| Admin | Acessa uma área administrativa separada para gerenciar contas. |
+- **Usuário (USER):** gerencia a própria simulação e pode excluir a própria conta.
+- **Administrador (ADMIN):** lista contas e ativa/desativa usuários. Credencial não pública.
 
-O painel administrativo não é utilizado para alterar as simulações privadas dos usuários.
+## Segurança e privacidade
 
-## Segurança
+- Senhas com hash scrypt (sal aleatório) e comparação em tempo constante; nenhum segredo de produção versionado.
+- Sessão por JWT em cookie HttpOnly/Secure/SameSite; CORS restrito ao domínio do frontend.
+- Consultas SQL parametrizadas; saídas do frontend escapadas.
+- Sem analytics, rastreamento ou cookies de terceiros (apenas o cookie de sessão).
+- Termos de Uso e Política de Privacidade disponíveis na aplicação.
 
-- Senhas armazenadas com derivação `scrypt`, nunca em texto puro.
-- Sessão em cookie `HttpOnly`, `Secure` e `SameSite=None` para a arquitetura frontend/backend separada.
-- Cada operação de dados é vinculada ao usuário autenticado no backend.
-- Contas administrativas não podem ser criadas pelo cadastro público.
-- Segredos de produção são mantidos em variáveis de ambiente e não no repositório.
+## Executando localmente
 
-## Origem do projeto
+Backend (requer `DATABASE_URL` e `JWT_SECRET`; opcional `PORT` e `FRONTEND_URL`):
 
-A primeira versão surgiu em 2025 em um trabalho acadêmico. Em 2026 o projeto foi revisitado e evoluído, mantendo a proposta original de cálculo de consumo enquanto adiciona uma arquitetura mais completa de aplicação web.
+```bash
+cd backend
+npm install
+npm start
+```
 
-## Observação
+Frontend: abra `index.html` via um servidor estático local. A URL da API é definida em `auth.js` (`const API`) — ajuste se necessário.
 
-Os resultados são estimativas. A potência varia conforme o aparelho e o custo real depende da tarifa e de outros componentes da conta de energia.
+## Testes
+
+O CI verifica a sintaxe dos arquivos JavaScript (`node --check`) e a integridade dos arquivos essenciais. Não há suíte de testes automatizados funcionais.
+
+## Deploy
+
+- **Frontend:** site estático no Render.
+- **Backend:** serviço Node no Render com variáveis `DATABASE_URL`, `JWT_SECRET` e `FRONTEND_URL`.
+- **Banco:** PostgreSQL gerenciado no Neon.
+
+## Limitações conhecidas
+
+- Sem verificação de e-mail e sem recuperação de senha.
+- Sem rate limiting nas rotas de autenticação.
+- A simulação mantém um único cenário por usuário (sem histórico).
+
+## Avisos específicos
+
+- Os cálculos são **estimativas** baseadas na potência nominal informada e na tarifa definida pelo usuário; não consideram bandeiras tarifárias, impostos nem o histórico real da unidade consumidora, e não substituem a fatura da distribuidora.
+
+## Autor
+
+Enzo Almeida

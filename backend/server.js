@@ -78,6 +78,12 @@ app.put('/api/data', auth, async (req,res)=>{
   res.status(204).end();
 });
 
+app.delete('/api/account', auth, async (req,res)=>{
+  await pool.query('DELETE FROM user_data WHERE user_id=$1',[req.user.id]);
+  await pool.query('DELETE FROM users WHERE id=$1',[req.user.id]);
+  res.clearCookie('energy_session', cookie).status(204).end();
+});
+
 app.get('/api/admin/users', auth, admin, async (_req,res)=>{
   const { rows } = await pool.query("SELECT u.id,u.name,u.email,u.role,u.active,u.created_at, CASE WHEN d.user_id IS NULL THEN false ELSE true END AS has_data FROM users u LEFT JOIN user_data d ON d.user_id=u.id ORDER BY u.created_at DESC");
   res.json({ users: rows.map(safe) });
