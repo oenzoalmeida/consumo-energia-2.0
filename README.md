@@ -72,6 +72,51 @@ O CI verifica a sintaxe dos arquivos JavaScript (`node --check`) e a integridade
 - **Backend:** serviço Node no Render com variáveis `DATABASE_URL`, `JWT_SECRET` e `FRONTEND_URL`.
 - **Banco:** PostgreSQL gerenciado no Neon.
 
+## Deploy do frontend no Cloudflare Pages (opcional, sem custo)
+
+O frontend é 100% portável: todo o acesso à API passa por `auth.js`, que chama o backend por URL
+absoluta (`https://consumo-energia-backend.onrender.com`, constante `API`), então **nenhuma
+mudança de código** é necessária. O backend já envia o cookie de sessão com
+`SameSite=None; Secure` fixo, então login cross-site funciona sem alteração. O backend é API pura
+(não serve estáticos), separação já existente na arquitetura atual.
+
+| Aspecto | Hoje (front no Render static) | Front no Pages + backend no Render free |
+|---|---|---|
+| Carregamento da página | Site estático no Render (CDN, já sem cold start) | Imediato (edge Cloudflare, sem cold start) |
+| Primeira chamada de API após o backend dormir | Cold start do backend Node (~13–24s) | **Continua sentindo o cold start do backend** (~13–24s no primeiro login/GET após 15 min de inatividade) |
+| Custo | R$ 0 | R$ 0 (Pages free) |
+| DNS próprio | Não exigido | Não exigido (`*.pages.dev`) |
+
+**Aviso honesto:** a migração melhora apenas o carregamento da página. O backend Node continua
+no Render free, adormece após 15 minutos e a primeira ação que toca a API continua esperando o
+serviço acordar. Nada no Render é apagado nesta migração.
+
+### Passo a passo (dashboard Cloudflare, sem CLI)
+
+1. Cloudflare Dashboard → **Workers & Pages** → *Create* → **Pages** → *Connect to Git* →
+   autorize e selecione este repositório.
+2. *Project name:* `consumo-energia` (o domínio fica `consumo-energia.pages.dev`).
+3. *Build configuration*:
+   - **Framework preset:** `None`
+   - **Build command:** vazio (é um site estático, sem build)
+   - **Build output directory:** `/` (raiz do repositório)
+4. *Save and Deploy*. O front sobe em `https://consumo-energia.pages.dev`.
+
+### CORS do backend quando o novo front estiver no ar
+
+O backend aceita uma única origem em `FRONTEND_URL` (Render → serviço do backend → Environment;
+default atual: `https://consumo-energia-2.onrender.com`). Quando o front do Pages estiver no ar
+e validado, atualize:
+
+```text
+FRONTEND_URL=https://consumo-energia.pages.dev
+```
+
+Atenção: como `FRONTEND_URL` aceita uma só origem, trocar o valor faz o site atual
+(`consumo-energia-2.onrender.com`) parar de funcionar (bloqueio de CORS). Faça a troca no momento
+do cutover, ou ajuste o código do backend para aceitar uma lista de origens se quiser período de
+transição com os dois sites no ar.
+
 ## Limitações conhecidas
 
 - Sem verificação de e-mail e sem recuperação de senha.
