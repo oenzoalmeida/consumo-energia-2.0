@@ -8,17 +8,69 @@ permissions:
   contents: read
 
 jobs:
-  validate:
+  frontend:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-     
+
       - name: Check JavaScript syntax
         run: node --check script.js
       - name: Check required files
         run: |
           test -f index.html
           test -f style.css
+
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: consumo_test
+          POSTGRES_USER: consumo
+          POSTGRES_PASSWORD: consumo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U consumo -d consumo_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://consumo:consumo@localhost:5432/consumo_test
+      JWT_SECRET: ci-placeholder-nao-usar-em-producao
+      PORT: '10000'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Syntax check
+        run: node --check server.js
+      - name: Start server and smoke test /health
+        run: |
+          node server.js &
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:10000/health || true)
+            if [ "$code" = "200" ]; then echo "GET /health -> 200"; exit 0; fi
+            sleep 1
+          done
+          echo "Servidor não respondeu 200 em /health a tempo"; exit 1
+      - name: Rate limit responde 429 após estourar a cota
+        run: |
+          for i in $(seq 1 15); do
+            curl -s -o /dev/null -X POST -H "Content-Type: application/json" -d '{"email":"ci@test.local","password":"nao-importa"}' http://localhost:10000/api/auth/login
+          done
+          code=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "Content-Type: application/json" -d '{"email":"ci@test.local","password":"nao-importa"}' http://localhost:10000/api/auth/login)
+          echo "16a requisicao -> $code"
+          [ "$code" = "429" ]
