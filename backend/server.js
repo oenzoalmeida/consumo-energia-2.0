@@ -19,6 +19,27 @@ app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
 
 const cookie = { httpOnly: true, secure: true, sameSite: 'none', path: '/', maxAge: 7 * 24 * 60 * 60 * 1000 };
+
+// Rate limit simples in-memory por IP (janela fixa) para os endpoints de autenticação
+// (login: força bruta; register: abuso de criação de contas). Ajustável via env.
+const RATE_LIMIT_PER_MINUTE = Number(process.env.RATE_LIMIT_PER_MINUTE || 10);
+const RATE_WINDOW_MS = 60_000;
+const rateHits = new Map(); // ip -> { start, count }
+function rateLimit(req, res, next) {
+  const xff = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+  const ip = xff || req.socket?.remoteAddress || 'unknown';
+  const now = Date.now();
+  let w = rateHits.get(ip);
+  if (!w || now - w.start >= RATE_WINDOW_MS) { w = { start: now, count: 0 }; rateHits.set(ip, w); }
+  if (rateHits.size > 10_000) for (const [k, v] of rateHits) if (now - v.start >= RATE_WINDOW_MS) rateHits.delete(k);
+  if (++w.count > RATE_LIMIT_PER_MINUTE) {
+    res.setHeader('Retry-After', Math.max(1, Math.ceil((RATE_WINDOW_MS - (now - w.start)) / 1000)));
+    return res.status(429).json({ error: 'Muitas requisições. Tente novamente em instantes.' });
+  }
+  next();
+}
+app.use('/api/auth/login', rateLimit);
+app.use('/api/auth/register', rateLimit);
 const sign = user => jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
 const safe = u => ({ id: String(u.id), name: u.name, email: u.email, role: u.role, active: u.active });
 
@@ -55,15 +76,17 @@ app.post('/api/auth/register', async (req,res) => {
   try {
     const { rows } = await pool.query("INSERT INTO users(name,email,password_hash,role) VALUES($1,$2,$3,'USER') RETURNING id,name,email,role,active", [name,email,hashPassword(password)]);
     const user = rows[0]; res.cookie('energy_session', sign(user), cookie).status(201).json({ user: safe(user) });
-  } catch (e) { if (e.code === '23505') return res.status(409).json({ error: 'Este e-mail já está cadastrado' }); throw e; }
+  } catch (e) { if (e.code === '23505') return res.status(409).json({ error: 'Este e-mail já está cadastrado' }); console.error(e); res.status(500).json({ error: 'Erro interno' }); }
 });
 app.post('/api/auth/login', async (req,res) => {
   const email = String(req.body.email || '').trim().toLowerCase();
   const password = String(req.body.password || '');
-  const { rows } = await pool.query('SELECT * FROM users WHERE email=$1', [email]);
-  const user = rows[0];
-  if (!user || !user.active || !verifyPassword(password, user.password_hash)) return res.status(401).json({ error: 'E-mail ou senha inválidos' });
-  res.cookie('energy_session', sign(user), cookie).json({ user: safe(user) });
+  try {
+    const { rows } = await pool.query('SELECT * FROM users WHERE email=$1', [email]);
+    const user = rows[0];
+    if (!user || !user.active || !verifyPassword(password, user.password_hash)) return res.status(401).json({ error: 'E-mail ou senha inválidos' });
+    res.cookie('energy_session', sign(user), cookie).json({ user: safe(user) });
+  } catch (e) { console.error(e); res.status(500).json({ error: 'Erro interno' }); }
 });
 app.post('/api/auth/logout', (_req,res)=>res.clearCookie('energy_session', cookie).status(204).end());
 app.get('/api/auth/me', auth, (req,res)=>res.json({user:safe(req.user)}));
