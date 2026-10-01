@@ -46,6 +46,7 @@ jobs:
       DATABASE_URL: postgres://consumo:consumo@localhost:5432/consumo_test
       JWT_SECRET: ci-placeholder-nao-usar-em-producao
       PORT: '10000'
+      FRONTEND_URL: 'https://consumo-energia-2.onrender.com,https://consumo-energia.pages.dev'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -74,3 +75,22 @@ jobs:
           code=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "Content-Type: application/json" -d '{"email":"ci@test.local","password":"nao-importa"}' http://localhost:10000/api/auth/login)
           echo "16a requisicao -> $code"
           [ "$code" = "429" ]
+      - name: Smoke CORS multi-origin (reflete origem da lista, sem wildcard)
+        run: |
+          for origin in https://consumo-energia-2.onrender.com https://consumo-energia.pages.dev; do
+            acao=$(curl -s -D - -o /dev/null http://localhost:10000/health -H "Origin: $origin" | grep -i '^access-control-allow-origin:' | tr -d '\r' | awk '{print $2}')
+            echo "Origin $origin -> Access-Control-Allow-Origin: $acao"
+            test "$acao" = "$origin"
+          done
+          acao=$(curl -s -D - -o /dev/null http://localhost:10000/health -H 'Origin: https://origem-nao-autorizada.example.com' | grep -i '^access-control-allow-origin:' | tr -d '\r' | awk '{print $2}')
+          echo "Origem fora da lista -> Access-Control-Allow-Origin: '$acao'"
+          test -z "$acao"
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X OPTIONS http://localhost:10000/api/data \
+            -H 'Origin: https://consumo-energia.pages.dev' \
+            -H 'Access-Control-Request-Method: PUT')
+          acao=$(curl -s -D - -o /dev/null -X OPTIONS http://localhost:10000/api/data \
+            -H 'Origin: https://consumo-energia.pages.dev' \
+            -H 'Access-Control-Request-Method: PUT' | grep -i '^access-control-allow-origin:' | tr -d '\r' | awk '{print $2}')
+          echo "Preflight OPTIONS (pages.dev) -> $code, Access-Control-Allow-Origin: $acao"
+          test "$code" = "204"
+          test "$acao" = "https://consumo-energia.pages.dev"

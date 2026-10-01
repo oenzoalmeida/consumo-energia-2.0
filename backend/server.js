@@ -10,11 +10,15 @@ const PORT = process.env.PORT || 10000;
 const DATABASE_URL = process.env.DATABASE_URL;
 const JWT_SECRET = process.env.JWT_SECRET;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://consumo-energia-2.onrender.com';
+// FRONTEND_URL aceita uma ou mais origens separadas por vírgula (transição
+// Render -> Cloudflare Pages). Com um único valor (ou o default), o
+// comportamento permanece idêntico ao anterior (origin fixa).
+const FRONTEND_ORIGINS = FRONTEND_URL.split(',').map(origin => origin.trim()).filter(Boolean);
 if (!DATABASE_URL) throw new Error('DATABASE_URL is required');
 if (!JWT_SECRET) throw new Error('JWT_SECRET is required');
 
 const pool = new pg.Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } });
-app.use(cors({ origin: FRONTEND_URL, credentials: true }));
+app.use(cors({ origin: FRONTEND_ORIGINS.length > 1 ? FRONTEND_ORIGINS : FRONTEND_URL, credentials: true }));
 app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
 
