@@ -4,6 +4,7 @@ import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import pg from 'pg';
+import { pathToFileURL } from 'node:url';
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -124,4 +125,17 @@ app.patch('/api/admin/users/:id', auth, admin, async (req,res)=>{
 });
 
 app.use((err,_req,res,_next)=>{ console.error(err); res.status(500).json({error:'Erro interno'}); });
-app.listen(PORT, '0.0.0.0', ()=>console.log(`Consumo Energia API on ${PORT}`));
+
+export default app;
+
+// O servidor só sobe quando o arquivo é executado diretamente (node server.js —
+// modo Render/local). Detecção pela comparação canônica entre import.meta.url e
+// process.argv[1] via pathToFileURL (padrão do Node para "main module" em ESM,
+// portável entre SOs). Quando o módulo é apenas importado — caso do handler
+// serverless api/index.js na Vercel — nada escuta porta; o app só é exportado.
+const isDirectRun = typeof process.argv[1] === 'string'
+  && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isDirectRun) {
+  app.listen(PORT, '0.0.0.0', ()=>console.log(`Consumo Energia API on ${PORT}`));
+}
